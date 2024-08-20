@@ -568,12 +568,12 @@ class JaxBackend(abstract_backend.AbstractBackend):
     eta, U, numits = eigsh_lanczos(_CACHED_MATVECS[A], args, initial_state,
                                    num_krylov_vecs, numeig, delta,
                                    reorthogonalize, self.jax_precision)
-    if numeig > numits:
-      warnings.warn(
-          f"Lanczos terminated early after numits = {numits}"
-          f" < numeig = {numeig} steps. For this value of `numeig `"
-          f"the routine will return spurious eigenvalues of value 0.0."
-          f"Use a smaller value of numeig, or a smaller value for `tol`")
+    # if numeig > numits:
+    #   warnings.warn(
+    #       f"Lanczos terminated early after numits = {numits}"
+    #       f" < numeig = {numeig} steps. For this value of `numeig `"
+    #       f"the routine will return spurious eigenvalues of value 0.0."
+    #       f"Use a smaller value of numeig, or a smaller value for `tol`")
     return eta, U
 
   def _gmres(self,

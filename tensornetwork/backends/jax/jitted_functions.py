@@ -24,11 +24,11 @@ def _iterative_classical_gram_schmidt(jax: types.ModuleType) -> Callable:
 
   JaxPrecisionType = type(jax.lax.Precision.DEFAULT)
   def iterative_classical_gram_schmidt(
-      vector: jax.ShapedArray,
-      krylov_vectors: jax.ShapedArray,
+      vector: jax.core.ShapedArray,
+      krylov_vectors: jax.core.ShapedArray,
       precision: JaxPrecisionType,
       iterations: int = 2,
-      ) -> jax.ShapedArray:
+      ) -> jax.core.ShapedArray:
     """
     Orthogonalize `vector`  to all rows of `krylov_vectors`.
 
@@ -39,7 +39,7 @@ def _iterative_classical_gram_schmidt(jax: types.ModuleType) -> Callable:
       iterations: Number of iterations.
 
     Returns:
-      jax.ShapedArray: The orthogonalized vector.
+      jax.core.ShapedArray: The orthogonalized vector.
     """
     i1 = list(range(1, len(krylov_vectors.shape)))
     i2 = list(range(len(vector.shape)))
@@ -92,9 +92,9 @@ def _generate_jitted_eigsh_lanczos(jax: types.ModuleType) -> Callable:
   JaxPrecisionType = type(jax.lax.Precision.DEFAULT)
 
   @functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7))
-  def jax_lanczos(matvec: Callable, arguments: List, init: jax.ShapedArray,
+  def jax_lanczos(matvec: Callable, arguments: List, init: jax.core.ShapedArray,
                   ncv: int, neig: int, landelta: float, reortho: bool,
-                  precision: JaxPrecisionType) -> Tuple[jax.ShapedArray, List]:
+                  precision: JaxPrecisionType) -> Tuple[jax.core.ShapedArray, List]:
     """
     Lanczos iteration for symmeric eigenvalue problems. If reortho = False,
     the Krylov basis is constructed without explicit re-orthogonalization. 
@@ -117,7 +117,7 @@ def _generate_jitted_eigsh_lanczos(jax: types.ModuleType) -> Callable:
       precision: jax.lax.Precision type used in jax.numpy.vdot
 
     Returns:
-      jax.ShapedArray: Eigenvalues
+      jax.core.ShapedArray: Eigenvalues
       List: Eigenvectors
       int: Number of iterations
     """
@@ -219,8 +219,7 @@ def _generate_jitted_eigsh_lanczos(jax: types.ModuleType) -> Callable:
       krv, unitary, vectors = vals
       dim = unitary.shape[1]
       n, m = jax.numpy.divmod(i, dim)
-      vectors = jax.ops.index_add(vectors, jax.ops.index[n, :],
-                                  krv[m + 1] * unitary[m, n])
+      vectors = vectors.at[n, :].add(krv[m + 1] * unitary[m, n])
       return [krv, unitary, vectors]
 
     _vectors = jax.numpy.zeros((neig,) + shape, dtype=dtype)
@@ -247,8 +246,8 @@ def _generate_lanczos_factorization(jax: types.ModuleType) -> Callable:
 
   @functools.partial(jax.jit, static_argnums=(6, 7, 8, 9))
   def _lanczos_fact(
-      matvec: Callable, args: List, v0: jax.ShapedArray,
-      Vm: jax.ShapedArray, alphas: jax.ShapedArray, betas: jax.ShapedArray,
+      matvec: Callable, args: List, v0: jax.core.ShapedArray,
+      Vm: jax.core.ShapedArray, alphas: jax.core.ShapedArray, betas: jax.core.ShapedArray,
       start: int, num_krylov_vecs: int, tol: float, precision: JaxPrecisionType
   ):
     """
@@ -288,13 +287,13 @@ def _generate_lanczos_factorization(jax: types.ModuleType) -> Callable:
         krylov-vector falls below `tol`.
 
     Returns:
-      jax.ShapedArray: An array of shape 
+      jax.core.ShapedArray: An array of shape 
         `(num_krylov_vecs, np.prod(initial_state.shape))` of krylov vectors.
-      jax.ShapedArray: The diagonal elements of the tridiagonal reduced
+      jax.core.ShapedArray: The diagonal elements of the tridiagonal reduced
         operator ("alphas")
-      jax.ShapedArray: The lower-diagonal elements of the tridiagonal reduced
+      jax.core.ShapedArray: The lower-diagonal elements of the tridiagonal reduced
         operator ("betas")
-      jax.ShapedArray: The unnormalized residual of the Lanczos process.
+      jax.core.ShapedArray: The unnormalized residual of the Lanczos process.
       float: The norm of the residual.
       int: The number of performed iterations.
       bool: if `True`: iteration hit an invariant subspace.
@@ -402,10 +401,10 @@ def _generate_arnoldi_factorization(jax: types.ModuleType) -> Callable:
 
   @functools.partial(jax.jit, static_argnums=(5, 6, 7, 8))
   def _arnoldi_fact(
-      matvec: Callable, args: List, v0: jax.ShapedArray,
-      Vm: jax.ShapedArray, H: jax.ShapedArray, start: int,
+      matvec: Callable, args: List, v0: jax.core.ShapedArray,
+      Vm: jax.core.ShapedArray, H: jax.core.ShapedArray, start: int,
       num_krylov_vecs: int, tol: float, precision: JaxPrecisionType
-  ) -> Tuple[jax.ShapedArray, jax.ShapedArray, jax.ShapedArray, float, int,
+  ) -> Tuple[jax.core.ShapedArray, jax.core.ShapedArray, jax.core.ShapedArray, float, int,
              bool]:
     """
     Compute an m-step arnoldi factorization of `matvec`, with
@@ -441,11 +440,11 @@ def _generate_arnoldi_factorization(jax: types.ModuleType) -> Callable:
       tol: Convergence parameter. Iteration is terminated if the norm of a
         krylov-vector falls below `tol`.
     Returns:
-      jax.ShapedArray: An array of shape 
+      jax.core.ShapedArray: An array of shape 
         `(num_krylov_vecs, np.prod(initial_state.shape))` of krylov vectors.
-      jax.ShapedArray: Upper Hessenberg matrix of shape 
+      jax.core.ShapedArray: Upper Hessenberg matrix of shape 
         `(num_krylov_vecs, num_krylov_vecs`) of the Arnoldi processs.
-      jax.ShapedArray: The unnormalized residual of the Arnoldi process.
+      jax.core.ShapedArray: The unnormalized residual of the Arnoldi process.
       int: The norm of the residual.
       int: The number of performed iterations.
       bool: if `True`: iteration hit an invariant subspace.
@@ -541,7 +540,7 @@ def _LR_sort(jax):
   @functools.partial(jax.jit, static_argnums=(0,))
   def sorter(
       p: int,
-      evals: jax.ShapedArray) -> Tuple[jax.ShapedArray, jax.ShapedArray]:
+      evals: jax.core.ShapedArray) -> Tuple[jax.core.ShapedArray, jax.core.ShapedArray]:
     inds = jax.numpy.argsort(jax.numpy.real(evals), kind='stable')[::-1]
     shifts = evals[inds][-p:]
     return shifts, inds
@@ -551,7 +550,7 @@ def _SA_sort(jax):
   @functools.partial(jax.jit, static_argnums=(0,))
   def sorter(
       p: int,
-      evals: jax.ShapedArray) -> Tuple[jax.ShapedArray, jax.ShapedArray]:
+      evals: jax.core.ShapedArray) -> Tuple[jax.core.ShapedArray, jax.core.ShapedArray]:
     inds = jax.numpy.argsort(evals, kind='stable')
     shifts = evals[inds][-p:]
     return shifts, inds
@@ -561,7 +560,7 @@ def _LA_sort(jax):
   @functools.partial(jax.jit, static_argnums=(0,))
   def sorter(
       p: int,
-      evals: jax.ShapedArray) -> Tuple[jax.ShapedArray, jax.ShapedArray]:
+      evals: jax.core.ShapedArray) -> Tuple[jax.core.ShapedArray, jax.core.ShapedArray]:
     inds = jax.numpy.argsort(evals, kind='stable')[::-1]
     shifts = evals[inds][-p:]
     return shifts, inds
@@ -571,7 +570,7 @@ def _LM_sort(jax):
   @functools.partial(jax.jit, static_argnums=(0,))
   def sorter(
       p: int,
-      evals: jax.ShapedArray) -> Tuple[jax.ShapedArray, jax.ShapedArray]:
+      evals: jax.core.ShapedArray) -> Tuple[jax.core.ShapedArray, jax.core.ShapedArray]:
     inds = jax.numpy.argsort(jax.numpy.abs(evals), kind='stable')[::-1]
     shifts = evals[inds][-p:]
     return shifts, inds
@@ -583,9 +582,9 @@ def _LM_sort(jax):
 def _shifted_QR(jax):
   @functools.partial(jax.jit, static_argnums=(4,))
   def shifted_QR(
-      Vm: jax.ShapedArray, Hm: jax.ShapedArray, fm: jax.ShapedArray,
-      shifts: jax.ShapedArray,
-      numeig: int) -> Tuple[jax.ShapedArray, jax.ShapedArray, jax.ShapedArray]:
+      Vm: jax.core.ShapedArray, Hm: jax.core.ShapedArray, fm: jax.core.ShapedArray,
+      shifts: jax.core.ShapedArray,
+      numeig: int) -> Tuple[jax.core.ShapedArray, jax.core.ShapedArray, jax.core.ShapedArray]:
     # compress arnoldi factorization
     q = jax.numpy.zeros(Hm.shape[0], dtype=Hm.dtype)
     q = q.at[-1].set(1.0)
@@ -607,14 +606,13 @@ def _shifted_QR(jax):
 
 def _get_vectors(jax):
   @functools.partial(jax.jit, static_argnums=(3,))
-  def get_vectors(Vm: jax.ShapedArray, unitary: jax.ShapedArray,
-                  inds: jax.ShapedArray, numeig: int) -> jax.ShapedArray:
+  def get_vectors(Vm: jax.core.ShapedArray, unitary: jax.core.ShapedArray,
+                  inds: jax.core.ShapedArray, numeig: int) -> jax.core.ShapedArray:
 
     def body_vector(i, states):
       dim = unitary.shape[1]
       n, m = jax.numpy.divmod(i, dim)
-      states = jax.ops.index_add(states, jax.ops.index[n, :],
-                                 Vm[m, :] * unitary[m, inds[n]])
+      states = states.at[n, :].add(Vm[m, :] * unitary[m, inds[n]])
       return states
 
     state_vectors = jax.numpy.zeros([numeig, Vm.shape[1]], dtype=Vm.dtype)
@@ -628,7 +626,7 @@ def _get_vectors(jax):
 
 def _check_eigvals_convergence_eigh(jax):
   @functools.partial(jax.jit, static_argnums=(3,))
-  def check_eigvals_convergence(beta_m: float, Hm: jax.ShapedArray,
+  def check_eigvals_convergence(beta_m: float, Hm: jax.core.ShapedArray,
                                 Hm_norm: float,
                                 tol: float) -> bool:
     eigvals, eigvecs = jax.numpy.linalg.eigh(Hm)
@@ -643,7 +641,7 @@ def _check_eigvals_convergence_eigh(jax):
 
 def _check_eigvals_convergence_eig(jax):
   @functools.partial(jax.jit, static_argnums=(2, 3))
-  def check_eigvals_convergence(beta_m: float, Hm: jax.ShapedArray,
+  def check_eigvals_convergence(beta_m: float, Hm: jax.core.ShapedArray,
                                 tol: float, numeig: int) -> bool:
     eigvals, eigvecs = jax.numpy.linalg.eig(Hm)
     # TODO (mganahl) confirm that this is a valid matrix norm)
@@ -698,10 +696,10 @@ def _implicitly_restarted_arnoldi(jax: types.ModuleType) -> Callable:
 
   @functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 8))
   def implicitly_restarted_arnoldi_method(
-      matvec: Callable, args: List, initial_state: jax.ShapedArray,
+      matvec: Callable, args: List, initial_state: jax.core.ShapedArray,
       num_krylov_vecs: int, numeig: int, which: Text, tol: float, maxiter: int,
       precision: JaxPrecisionType
-  ) -> Tuple[jax.ShapedArray, List[jax.ShapedArray], int]:
+  ) -> Tuple[jax.core.ShapedArray, List[jax.core.ShapedArray], int]:
     """
     Implicitly restarted arnoldi factorization of `matvec`. The routine
     finds the lowest `numeig` eigenvector-eigenvalue pairs of `matvec`
@@ -733,7 +731,7 @@ def _implicitly_restarted_arnoldi(jax: types.ModuleType) -> Callable:
       precision: jax.lax.Precision used within lax operations.
 
     Returns:
-      jax.ShapedArray: Eigenvalues
+      jax.core.ShapedArray: Eigenvalues
       List: Eigenvectors
       int: Number of inner krylov iterations of the last arnoldi
         factorization.
@@ -916,10 +914,10 @@ def _implicitly_restarted_lanczos(jax: types.ModuleType) -> Callable:
 
   @functools.partial(jax.jit, static_argnums=(3, 4, 5, 6, 7, 8))
   def implicitly_restarted_lanczos_method(
-      matvec: Callable, args: List, initial_state: jax.ShapedArray,
+      matvec: Callable, args: List, initial_state: jax.core.ShapedArray,
       num_krylov_vecs: int, numeig: int, which: Text, tol: float, maxiter: int,
       precision: JaxPrecisionType
-  ) -> Tuple[jax.ShapedArray, List[jax.ShapedArray], int]:
+  ) -> Tuple[jax.core.ShapedArray, List[jax.core.ShapedArray], int]:
     """
     Implicitly restarted lanczos factorization of `matvec`. The routine
     finds the lowest `numeig` eigenvector-eigenvalue pairs of `matvec`
@@ -955,7 +953,7 @@ def _implicitly_restarted_lanczos(jax: types.ModuleType) -> Callable:
       precision: jax.lax.Precision used within lax operations.
 
     Returns:
-      jax.ShapedArray: Eigenvalues
+      jax.core.ShapedArray: Eigenvalues
       List: Eigenvectors
       int: Number of inner krylov iterations of the last lanczos
         factorization.
@@ -1110,9 +1108,9 @@ def gmres_wrapper(jax: types.ModuleType):
   jnp = jax.numpy
   JaxPrecisionType = type(jax.lax.Precision.DEFAULT)
   def gmres_m(
-      A_mv: Callable, A_args: Sequence, b: jax.ShapedArray, x0: jax.ShapedArray,
+      A_mv: Callable, A_args: Sequence, b: jax.core.ShapedArray, x0: jax.core.ShapedArray,
       tol: float, atol: float, num_krylov_vectors: int, maxiter: int,
-      precision: JaxPrecisionType) -> Tuple[jax.ShapedArray, float, int, bool]:
+      precision: JaxPrecisionType) -> Tuple[jax.core.ShapedArray, float, int, bool]:
     """
     Solve A x = b for x using the m-restarted GMRES method. This is
     intended to be called via jax_backend.gmres.
@@ -1152,10 +1150,10 @@ def gmres_wrapper(jax: types.ModuleType):
         break
     return x, beta, n_iter, done
 
-  def gmres(A_mv: Callable, A_args: Sequence, b: jax.ShapedArray,
-            x: jax.ShapedArray, num_krylov_vectors: int, x0: jax.ShapedArray,
+  def gmres(A_mv: Callable, A_args: Sequence, b: jax.core.ShapedArray,
+            x: jax.core.ShapedArray, num_krylov_vectors: int, x0: jax.core.ShapedArray,
             tol: float, b_norm: float,
-            precision: JaxPrecisionType) -> Tuple[bool, float, jax.ShapedArray]:
+            precision: JaxPrecisionType) -> Tuple[bool, float, jax.core.ShapedArray]:
     """
     A single restart of GMRES.
 
@@ -1180,8 +1178,8 @@ def gmres_wrapper(jax: types.ModuleType):
     return done, beta, x
 
   @jax.jit
-  def gmres_residual(A_mv: Callable, A_args: Sequence, b: jax.ShapedArray,
-                     x: jax.ShapedArray) -> Tuple[jax.ShapedArray, float]:
+  def gmres_residual(A_mv: Callable, A_args: Sequence, b: jax.core.ShapedArray,
+                     x: jax.core.ShapedArray) -> Tuple[jax.core.ShapedArray, float]:
     """
     Computes the residual vector r and its norm, beta, which is minimized by
     GMRES.
@@ -1200,9 +1198,9 @@ def gmres_wrapper(jax: types.ModuleType):
     beta = jnp.linalg.norm(r)
     return r, beta
 
-  def gmres_update(k: int, V: jax.ShapedArray, R: jax.ShapedArray,
-                   beta_vec: jax.ShapedArray,
-                   x0: jax.ShapedArray) -> jax.ShapedArray:
+  def gmres_update(k: int, V: jax.core.ShapedArray, R: jax.core.ShapedArray,
+                   beta_vec: jax.core.ShapedArray,
+                   x0: jax.core.ShapedArray) -> jax.core.ShapedArray:
     """
     Updates the solution in response to the information computed by the
     main GMRES loop.
@@ -1223,10 +1221,10 @@ def gmres_wrapper(jax: types.ModuleType):
 
   @functools.partial(jax.jit, static_argnums=(2, 8))
   def gmres_krylov(
-      A_mv: Callable, A_args: Sequence, n_kry: int, x0: jax.ShapedArray,
-      r: jax.ShapedArray, beta: float, tol: float, b_norm: float,
+      A_mv: Callable, A_args: Sequence, n_kry: int, x0: jax.core.ShapedArray,
+      r: jax.core.ShapedArray, beta: float, tol: float, b_norm: float,
       precision: JaxPrecisionType
-  ) -> Tuple[int, jax.ShapedArray, jax.ShapedArray, jax.ShapedArray]:
+  ) -> Tuple[int, jax.core.ShapedArray, jax.core.ShapedArray, jax.core.ShapedArray]:
     """
     Builds the Arnoldi decomposition of (A, v), where v is the normalized
     residual of the current solution estimate. The decomposition is
@@ -1342,17 +1340,17 @@ def gmres_wrapper(jax: types.ModuleType):
     k, V, R, beta_vec, err, givens = gmres_variables
     return (k, V, R, beta_vec)
 
-  VarType = Tuple[int, jax.ShapedArray, jax.ShapedArray, jax.ShapedArray,
-                  float, jax.ShapedArray]
-  ConstType = Tuple[float, Callable, Sequence, jax.ShapedArray, int]
+  VarType = Tuple[int, jax.core.ShapedArray, jax.core.ShapedArray, jax.core.ShapedArray,
+                  float, jax.core.ShapedArray]
+  ConstType = Tuple[float, Callable, Sequence, jax.core.ShapedArray, int]
   GmresCarryType = Tuple[VarType, ConstType]
 
 
   @functools.partial(jax.jit, static_argnums=(6,))
   def kth_arnoldi_step(
-      k: int, A_mv: Callable, A_args: Sequence, V: jax.ShapedArray,
-      H: jax.ShapedArray, tol: float,
-      precision: JaxPrecisionType) -> Tuple[jax.ShapedArray, jax.ShapedArray]:
+      k: int, A_mv: Callable, A_args: Sequence, V: jax.core.ShapedArray,
+      H: jax.core.ShapedArray, tol: float,
+      precision: JaxPrecisionType) -> Tuple[jax.core.ShapedArray, jax.core.ShapedArray]:
     """
     Performs the kth iteration of the Arnoldi reduction procedure.
     Args:
@@ -1368,8 +1366,8 @@ def gmres_wrapper(jax: types.ModuleType):
     """
 
     def _gs_step(
-        r: jax.ShapedArray,
-        v_i: jax.ShapedArray) -> Tuple[jax.ShapedArray, jax.ShapedArray]:
+        r: jax.core.ShapedArray,
+        v_i: jax.core.ShapedArray) -> Tuple[jax.core.ShapedArray, jax.core.ShapedArray]:
       """
       Performs one iteration of the stabilized Gram-Schmidt procedure, with
       r to be orthonormalized against {v} = {v_0, v_1, ...}.
@@ -1404,8 +1402,8 @@ def gmres_wrapper(jax: types.ModuleType):
 # GIVENS ROTATIONS
 ####################################################################
   @jax.jit
-  def apply_rotations(H_col: jax.ShapedArray, givens: jax.ShapedArray,
-                      k: int) -> jax.ShapedArray:
+  def apply_rotations(H_col: jax.core.ShapedArray, givens: jax.core.ShapedArray,
+                      k: int) -> jax.core.ShapedArray:
     """
     Successively applies each of the rotations stored in givens to H_col.
 
@@ -1440,8 +1438,8 @@ def gmres_wrapper(jax: types.ModuleType):
     return H_col
 
   @jax.jit
-  def apply_givens_rotation(H_col: jax.ShapedArray, givens: jax.ShapedArray,
-                            k: int) -> Tuple[jax.ShapedArray, jax.ShapedArray]:
+  def apply_givens_rotation(H_col: jax.core.ShapedArray, givens: jax.core.ShapedArray,
+                            k: int) -> Tuple[jax.core.ShapedArray, jax.core.ShapedArray]:
     """
     Applies the Givens rotations stored in the vectors cs and sn to the vector
     H_col. Then constructs a new Givens rotation that eliminates H_col's
